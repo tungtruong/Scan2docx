@@ -11,7 +11,14 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/scan2docx}"
 APP_USER="${APP_USER:-scan2docx}"
 APP_GROUP="${APP_GROUP:-scan2docx}"
 SERVICE_NAME="${SERVICE_NAME:-scan2docx}"
-BRANCH="${BRANCH:-main}"
+BRANCH="${BRANCH:-master}"
+
+if command -v pacman >/dev/null 2>&1; then
+  pacman -Sy --noconfirm --needed \
+    git python python-pip tesseract \
+    base-devel gcc pkgconf \
+    libjpeg-turbo zlib libtiff lcms2 libwebp openjpeg2 freetype2
+fi
 
 PYTHON_BIN="$(command -v python3 || true)"
 if [[ -z "$PYTHON_BIN" ]]; then
@@ -26,13 +33,6 @@ GIT_BIN="$(command -v git || true)"
 if [[ -z "$GIT_BIN" ]]; then
   echo "git not found. Please install git (pacman -S git)."
   exit 1
-fi
-
-if command -v pacman >/dev/null 2>&1; then
-  pacman -Sy --noconfirm --needed \
-    git python python-pip tesseract \
-    base-devel gcc pkgconf \
-    libjpeg-turbo zlib libtiff lcms2 libwebp openjpeg2 freetype2
 fi
 
 if ! id -u "$APP_USER" >/dev/null 2>&1; then

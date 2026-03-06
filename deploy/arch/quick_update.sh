@@ -9,7 +9,7 @@ fi
 INSTALL_DIR="${INSTALL_DIR:-/opt/scan2docx}"
 SERVICE_NAME="${SERVICE_NAME:-scan2docx}"
 APP_USER="${APP_USER:-scan2docx}"
-BRANCH="${BRANCH:-main}"
+BRANCH="${BRANCH:-master}"
 
 if command -v pacman >/dev/null 2>&1; then
   pacman -Sy --noconfirm --needed \
