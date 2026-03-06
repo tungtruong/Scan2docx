@@ -1,0 +1,23 @@
+[Unit]
+Description=Scan2DOCX Telegram Bot (Arch)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scan2docx
+Group=scan2docx
+WorkingDirectory=/opt/scan2docx
+EnvironmentFile=/opt/scan2docx/.env
+ExecStart=/opt/scan2docx/.venv/bin/python /opt/scan2docx/bot.py
+Restart=always
+RestartSec=3
+TimeoutStartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/scan2docx
+
+[Install]
+WantedBy=multi-user.target

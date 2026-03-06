@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+  echo "Please run as root: sudo bash deploy/arch/quick_update.sh"
+  exit 1
+fi
+
+INSTALL_DIR="${INSTALL_DIR:-/opt/scan2docx}"
+SERVICE_NAME="${SERVICE_NAME:-scan2docx}"
+APP_USER="${APP_USER:-scan2docx}"
+BRANCH="${BRANCH:-main}"
+
+if [[ ! -d "$INSTALL_DIR/.git" ]]; then
+  echo "No git repository at $INSTALL_DIR"
+  exit 1
+fi
+
+if [[ ! -x "$INSTALL_DIR/.venv/bin/python" ]]; then
+  echo "Missing python venv at $INSTALL_DIR/.venv"
+  exit 1
+fi
+
+DB_PATH="${DB_PATH:-$INSTALL_DIR/data/billing.sqlite3}"
+BACKUP_DIR="${BACKUP_DIR:-$INSTALL_DIR/backups}"
+if [[ -f "$DB_PATH" ]]; then
+  mkdir -p "$BACKUP_DIR"
+  TS="$(date +%Y%m%d_%H%M%S)"
+  cp "$DB_PATH" "$BACKUP_DIR/billing_preupdate_${TS}.sqlite3"
+fi
+
+runuser -u "$APP_USER" -- git -C "$INSTALL_DIR" fetch origin "$BRANCH"
+runuser -u "$APP_USER" -- git -C "$INSTALL_DIR" checkout "$BRANCH"
+runuser -u "$APP_USER" -- git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH"
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/python" -m compileall "$INSTALL_DIR/bot.py"
+
+systemctl restart "${SERVICE_NAME}.service"
+systemctl --no-pager --full status "${SERVICE_NAME}.service" | sed -n '1,20p'
+
+echo "Update complete."

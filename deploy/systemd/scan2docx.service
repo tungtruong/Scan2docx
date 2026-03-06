@@ -1,0 +1,16 @@
+[Unit]
+Description=Scan2DOCX Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/scan2docx
+EnvironmentFile=/opt/scan2docx/.env
+ExecStart=/usr/bin/python3 /opt/scan2docx/bot.py
+Restart=always
+RestartSec=3
+User=scan2docx
+Group=scan2docx
+
+[Install]
+WantedBy=multi-user.target

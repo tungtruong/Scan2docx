@@ -1,0 +1,9 @@
+[scan2docx-nginx]
+enabled = true
+port = http,https
+filter = scan2docx-nginx
+logpath = /var/log/nginx/access.log
+maxretry = 30
+findtime = 600
+bantime = 3600
+backend = auto

@@ -1,0 +1,2 @@
+# Scan2DOCX daily billing DB backup at 02:30 UTC
+30 2 * * * cd /opt/scan2docx && /usr/bin/python3 deploy/scripts/backup_billing_db.py --db-path /opt/scan2docx/data/billing.sqlite3 --backup-dir /opt/scan2docx/backups --keep-count 14 >> /var/log/scan2docx-backup.log 2>&1

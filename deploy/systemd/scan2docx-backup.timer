@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Scan2DOCX billing DB backup daily
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+Unit=scan2docx-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Scan2DOCX billing DB backup
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/scan2docx
+EnvironmentFile=/opt/scan2docx/.env
+ExecStart=/usr/bin/python3 /opt/scan2docx/deploy/scripts/backup_billing_db.py --db-path ${BACKUP_DB_PATH:-/opt/scan2docx/data/billing.sqlite3} --backup-dir ${BACKUP_DIR:-/opt/scan2docx/backups} --keep-count ${BACKUP_KEEP_COUNT:-14}
+User=scan2docx
+Group=scan2docx

@@ -1,0 +1,66 @@
+services:
+  bot:
+    build: .
+    container_name: scan2docx-bot
+    env_file:
+      - .env
+    environment:
+      RUN_MODE: webhook
+      WEBHOOK_LISTEN: 0.0.0.0
+      WEBHOOK_PORT: 8080
+      WEBHOOK_PATH: /telegram/webhook
+    volumes:
+      - ./cache:/app/cache
+      - ./data:/app/data
+    expose:
+      - "8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import os,sys,urllib.request,urllib.error;
+          port=os.getenv('WEBHOOK_PORT','8080');
+          url=f'http://127.0.0.1:{port}/';
+          
+          try:
+              urllib.request.urlopen(url, timeout=3)
+          except urllib.error.HTTPError as e:
+              sys.exit(0 if e.code in (200, 301, 302, 404, 405) else 1)
+          except Exception:
+              sys.exit(1)
+          else:
+              sys.exit(0)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: scan2docx-nginx
+    depends_on:
+      bot:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    environment:
+      NGINX_LIMIT_ZONE_SIZE: ${NGINX_LIMIT_ZONE_SIZE:-10m}
+      NGINX_CONN_ZONE_SIZE: ${NGINX_CONN_ZONE_SIZE:-10m}
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-20m}
+      NGINX_RATE_LIMIT_BURST: ${NGINX_RATE_LIMIT_BURST:-20}
+      NGINX_CONN_LIMIT_PER_IP: ${NGINX_CONN_LIMIT_PER_IP:-30}
+      NGINX_PROXY_CONNECT_TIMEOUT: ${NGINX_PROXY_CONNECT_TIMEOUT:-5s}
+      NGINX_PROXY_SEND_TIMEOUT: ${NGINX_PROXY_SEND_TIMEOUT:-60s}
+      NGINX_PROXY_READ_TIMEOUT: ${NGINX_PROXY_READ_TIMEOUT:-60s}
+    volumes:
+      - ./deploy/nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q --spider http://127.0.0.1/ || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
