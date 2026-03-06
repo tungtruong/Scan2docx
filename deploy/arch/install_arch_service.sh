@@ -69,7 +69,7 @@ if [[ ! -d "$INSTALL_DIR/.venv" ]]; then
 fi
 
 runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip setuptools wheel
-runuser -u "$APP_USER" -- env PIP_PREFER_BINARY=1 "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --prefer-binary -r "$INSTALL_DIR/requirements.txt"
 
 if [[ ! -f "$INSTALL_DIR/.env" ]]; then
   cp "$INSTALL_DIR/.env.example" "$INSTALL_DIR/.env"
