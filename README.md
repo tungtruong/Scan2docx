@@ -223,6 +223,13 @@ Neu gap loi build `Pillow` (vd: `error: command 'gcc' failed`), cai them build d
 sudo pacman -Sy --needed base-devel gcc pkgconf libjpeg-turbo zlib libtiff lcms2 libwebp openjpeg2 freetype2
 ```
 
+Neu server dang dung Python qua moi (vd 3.14) va van phai build source, hay xoa venv cu roi chay lai installer de script tu uu tien `python3.13` (neu co):
+
+```bash
+sudo rm -rf /opt/scan2docx/.venv
+sudo BRANCH=master bash /opt/scan2docx/deploy/arch/install_arch_service.sh
+```
+
 ## 4) Su dung
 
 - Mo chat voi bot va go `/start`

@@ -18,9 +18,15 @@ if command -v pacman >/dev/null 2>&1; then
     git python python-pip tesseract \
     base-devel gcc pkgconf \
     libjpeg-turbo zlib libtiff lcms2 libwebp openjpeg2 freetype2
+
+  # Optional: prefer a stable Python minor for binary wheel compatibility.
+  pacman -Sy --noconfirm --needed python313 >/dev/null 2>&1 || true
 fi
 
-PYTHON_BIN="$(command -v python3 || true)"
+PYTHON_BIN="$(command -v python3.13 || true)"
+if [[ -z "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="$(command -v python3 || true)"
+fi
 if [[ -z "$PYTHON_BIN" ]]; then
   PYTHON_BIN="$(command -v python || true)"
 fi
