@@ -69,6 +69,8 @@ DEFAULT_ENABLE_DOCX_MEDIA_COMPRESSION = True
 DEFAULT_DOCX_MEDIA_COMPRESSION_MIN_MB = 8
 DEFAULT_DOCX_IMAGE_MAX_DIMENSION = 1800
 DEFAULT_DOCX_IMAGE_JPEG_QUALITY = 70
+DEFAULT_AUTO_OCR_LANG_CANDIDATES = "vie+eng,eng"
+DEFAULT_AUTO_OCR_DETECT_SAMPLE_PAGES = 2
 
 
 def _log_event(level: int, event: str, **fields: object) -> None:
@@ -468,6 +470,70 @@ def _ocr_page_images(page_images: List[Tuple[int, Image.Image]], lang: str) -> L
     return page_texts
 
 
+def _score_ocr_text_quality(text: str) -> int:
+    if not text:
+        return 0
+    cleaned = text.strip()
+    if not cleaned:
+        return 0
+
+    alnum_count = sum(1 for ch in cleaned if ch.isalnum())
+    vietnamese_diacritics = sum(
+        1
+        for ch in cleaned
+        if ch in "ăâđêôơưĂÂĐÊÔƠƯáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ"
+    )
+    # Favor readable OCR output and slightly prefer preserved Vietnamese diacritics.
+    return alnum_count + (2 * vietnamese_diacritics)
+
+
+def _parse_auto_lang_candidates(raw_value: str) -> List[str]:
+    candidates: List[str] = []
+    for item in (raw_value or "").split(","):
+        value = item.strip()
+        if not value or value.lower() == "auto":
+            continue
+        if _is_valid_ocr_lang(value):
+            candidates.append(value)
+
+    if not candidates:
+        return ["vie+eng", "eng"]
+    return candidates
+
+
+def _detect_ocr_lang_from_page_images(
+    page_images: List[Tuple[int, Image.Image]],
+    fallback_lang: str,
+    candidate_langs: List[str],
+    sample_pages: int,
+) -> str:
+    if not page_images:
+        return fallback_lang
+
+    sampled = page_images[: max(1, sample_pages)]
+    prepared_images = [_preprocess_image(img) for _, img in sampled]
+
+    best_lang = fallback_lang
+    best_score = -1
+
+    for candidate in candidate_langs:
+        total_score = 0
+        success = False
+        for prepared in prepared_images:
+            try:
+                text = pytesseract.image_to_string(prepared, lang=candidate, config="--oem 3 --psm 6")
+                total_score += _score_ocr_text_quality(text)
+                success = True
+            except Exception:
+                continue
+
+        if success and total_score > best_score:
+            best_score = total_score
+            best_lang = candidate
+
+    return best_lang
+
+
 def _build_docx(page_texts: List[Tuple[int, str]], output_path: Path) -> None:
     document = Document()
     style = document.styles["Normal"]
@@ -674,6 +740,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 def _is_valid_ocr_lang(value: str) -> bool:
+    if value.lower() == "auto":
+        return True
     return re.fullmatch(r"[a-zA-Z+_\-]{2,30}", value) is not None
 
 
@@ -729,14 +797,14 @@ async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         current = _get_user_ocr_lang(db_path, user.id) or os.getenv("OCR_LANG", "vie+eng")
         await message.reply_text(
             "Usage: /lang <code>\n"
-            "Example: /lang eng or /lang vie+eng\n"
+            "Example: /lang auto or /lang eng or /lang vie+eng\n"
             f"Current OCR language: {current}"
         )
         return
 
     lang_value = context.args[0].strip()
     if not _is_valid_ocr_lang(lang_value):
-        await message.reply_text("Invalid language code format. Example: eng or vie+eng")
+        await message.reply_text("Invalid language code format. Example: auto, eng, or vie+eng")
         return
 
     _set_user_ocr_lang(db_path, user.id, lang_value)
@@ -1026,6 +1094,12 @@ async def process_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         ocr_lang = _get_user_ocr_lang(db_path, user_id) if user_id else None
         if not ocr_lang:
             ocr_lang = default_ocr_lang
+        auto_lang_candidates = _parse_auto_lang_candidates(
+            os.getenv("AUTO_OCR_LANG_CANDIDATES", DEFAULT_AUTO_OCR_LANG_CANDIDATES)
+        )
+        auto_lang_detect_sample_pages = int(
+            os.getenv("AUTO_OCR_DETECT_SAMPLE_PAGES", str(DEFAULT_AUTO_OCR_DETECT_SAMPLE_PAGES))
+        )
         ocr_timeout_seconds = int(os.getenv("OCR_TIMEOUT_SECONDS", str(DEFAULT_OCR_TIMEOUT_SECONDS)))
         text_native_min_chars = int(
             os.getenv("TEXT_NATIVE_MIN_CHARS", str(DEFAULT_TEXT_NATIVE_MIN_CHARS))
@@ -1103,6 +1177,7 @@ async def process_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             max_pages=max_pages,
             max_input_bytes=max_input_bytes,
             ocr_lang=ocr_lang,
+            auto_lang_candidates=auto_lang_candidates,
         )
         total_started_at = time.perf_counter()
         status = "failed"
@@ -1111,6 +1186,7 @@ async def process_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         ocr_pages = 0
         ocr_time_seconds = 0.0
         source_hash = ""
+        effective_ocr_lang = ocr_lang
 
         cache_dir = context.application.bot_data.get("cache_dir")
         if cache_dir is None:
@@ -1305,11 +1381,31 @@ async def process_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                             missing_text_pages,
                             max_pages,
                         )
+                        if ocr_lang.lower() == "auto":
+                            effective_ocr_lang = await asyncio.to_thread(
+                                _detect_ocr_lang_from_page_images,
+                                selected_images,
+                                default_ocr_lang,
+                                auto_lang_candidates,
+                                auto_lang_detect_sample_pages,
+                            )
+                            _log_event(
+                                logging.INFO,
+                                "ocr_lang_auto_detected",
+                                request_id=request_id,
+                                user_id=user_id,
+                                detected_lang=effective_ocr_lang,
+                                candidates=auto_lang_candidates,
+                                pages_sampled=min(len(selected_images), auto_lang_detect_sample_pages),
+                            )
+                        else:
+                            effective_ocr_lang = ocr_lang
+
                         ocr_started_at = time.perf_counter()
                         ocr_result = await _run_in_thread_with_timeout(
                             _ocr_page_images,
                             selected_images,
-                            ocr_lang,
+                            effective_ocr_lang,
                             timeout_seconds=ocr_timeout_seconds,
                         )
                         ocr_time_seconds = time.perf_counter() - ocr_started_at
@@ -1341,11 +1437,33 @@ async def process_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     image = source_image.convert("RGB")
                     source_image.close()
                     images = [image]
+
+                    image_pages = [(1, image)]
+                    if ocr_lang.lower() == "auto":
+                        effective_ocr_lang = await asyncio.to_thread(
+                            _detect_ocr_lang_from_page_images,
+                            image_pages,
+                            default_ocr_lang,
+                            auto_lang_candidates,
+                            auto_lang_detect_sample_pages,
+                        )
+                        _log_event(
+                            logging.INFO,
+                            "ocr_lang_auto_detected",
+                            request_id=request_id,
+                            user_id=user_id,
+                            detected_lang=effective_ocr_lang,
+                            candidates=auto_lang_candidates,
+                            pages_sampled=1,
+                        )
+                    else:
+                        effective_ocr_lang = ocr_lang
+
                     ocr_started_at = time.perf_counter()
                     page_texts = await _run_in_thread_with_timeout(
                         _ocr_images,
                         images,
-                        ocr_lang,
+                        effective_ocr_lang,
                         timeout_seconds=ocr_timeout_seconds,
                     )
                     ocr_time_seconds = time.perf_counter() - ocr_started_at
@@ -1394,9 +1512,10 @@ async def process_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
                 await asyncio.to_thread(shutil.copyfile, output_path, cache_path)
 
+                caption_lang = effective_ocr_lang if ocr_pages > 0 else "n/a"
                 caption = (
                     f"Done ({plan_name}). Total pages: {total_pages}. "
-                    f"Native: {native_pages}. OCR: {ocr_pages}."
+                    f"Native: {native_pages}. OCR: {ocr_pages}. Lang: {caption_lang}."
                 )
                 if output_size > max_output_docx_bytes:
                     caption += " Output is large; Telegram upload may be unstable on weak networks."

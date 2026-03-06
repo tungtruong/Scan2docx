@@ -21,6 +21,7 @@ Tao file `.env` tu `.env.example`:
 ```env
 BOT_TOKEN=your_telegram_bot_token_here
 OCR_LANG=vie+eng
+# OCR_LANG=auto
 # RUN_MODE=polling
 # WEBHOOK_URL=https://your-domain.example.com
 # WEBHOOK_PATH=/telegram/webhook
@@ -38,6 +39,8 @@ OCR_LANG=vie+eng
 # TESSERACT_CMD=C:/Program Files/Tesseract-OCR/tesseract.exe
 # MAX_CONCURRENT_JOBS=2
 # OCR_TIMEOUT_SECONDS=120
+# AUTO_OCR_LANG_CANDIDATES=vie+eng,eng
+# AUTO_OCR_DETECT_SAMPLE_PAGES=2
 # TELEGRAM_WRITE_TIMEOUT_SECONDS=180
 # MAX_OUTPUT_DOCX_MB=25
 # ENABLE_DOCX_MEDIA_COMPRESSION=1
@@ -237,7 +240,7 @@ sudo BRANCH=master bash /opt/scan2docx/deploy/arch/install_arch_service.sh
 - Bot tra lai file `.docx`
 - Dung `/plan` de xem goi hien tai
 - Dung `/buy` de mua goi Premium subscription ($5/thang)
-- Dung `/lang <code>` de doi ngon ngu OCR (VD: `eng`, `vie+eng`)
+- Dung `/lang <code>` de doi ngon ngu OCR (VD: `auto`, `eng`, `vie+eng`)
 - Dung `/status` de xem trang thai job gan nhat
 - Admin: `/grant <user_id> [days]`, `/revoke <user_id>`, `/stats`
 
