@@ -11,6 +11,12 @@ SERVICE_NAME="${SERVICE_NAME:-scan2docx}"
 APP_USER="${APP_USER:-scan2docx}"
 BRANCH="${BRANCH:-main}"
 
+GIT_BIN="$(command -v git || true)"
+if [[ -z "$GIT_BIN" ]]; then
+  echo "git not found. Please install git (pacman -S git)."
+  exit 1
+fi
+
 if [[ ! -d "$INSTALL_DIR/.git" ]]; then
   echo "No git repository at $INSTALL_DIR"
   exit 1
@@ -29,9 +35,9 @@ if [[ -f "$DB_PATH" ]]; then
   cp "$DB_PATH" "$BACKUP_DIR/billing_preupdate_${TS}.sqlite3"
 fi
 
-runuser -u "$APP_USER" -- git -C "$INSTALL_DIR" fetch origin "$BRANCH"
-runuser -u "$APP_USER" -- git -C "$INSTALL_DIR" checkout "$BRANCH"
-runuser -u "$APP_USER" -- git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH"
+runuser -u "$APP_USER" -- "$GIT_BIN" -C "$INSTALL_DIR" fetch origin "$BRANCH"
+runuser -u "$APP_USER" -- "$GIT_BIN" -C "$INSTALL_DIR" checkout "$BRANCH"
+runuser -u "$APP_USER" -- "$GIT_BIN" -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH"
 runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip
 runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/python" -m compileall "$INSTALL_DIR/bot.py"

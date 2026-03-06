@@ -13,6 +13,21 @@ APP_GROUP="${APP_GROUP:-scan2docx}"
 SERVICE_NAME="${SERVICE_NAME:-scan2docx}"
 BRANCH="${BRANCH:-main}"
 
+PYTHON_BIN="$(command -v python3 || true)"
+if [[ -z "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="$(command -v python || true)"
+fi
+if [[ -z "$PYTHON_BIN" ]]; then
+  echo "Python not found. Please install python (pacman -S python)."
+  exit 1
+fi
+
+GIT_BIN="$(command -v git || true)"
+if [[ -z "$GIT_BIN" ]]; then
+  echo "git not found. Please install git (pacman -S git)."
+  exit 1
+fi
+
 if command -v pacman >/dev/null 2>&1; then
   pacman -Sy --noconfirm --needed git python python-pip tesseract
 fi
@@ -32,12 +47,12 @@ chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR"
 
 if [[ -n "$REPO_URL" ]]; then
   if [[ -d "$INSTALL_DIR/.git" ]]; then
-    runuser -u "$APP_USER" -- git -C "$INSTALL_DIR" fetch origin "$BRANCH"
-    runuser -u "$APP_USER" -- git -C "$INSTALL_DIR" checkout "$BRANCH"
-    runuser -u "$APP_USER" -- git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH"
+    runuser -u "$APP_USER" -- "$GIT_BIN" -C "$INSTALL_DIR" fetch origin "$BRANCH"
+    runuser -u "$APP_USER" -- "$GIT_BIN" -C "$INSTALL_DIR" checkout "$BRANCH"
+    runuser -u "$APP_USER" -- "$GIT_BIN" -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH"
   else
     rm -rf "$INSTALL_DIR"
-    runuser -u "$APP_USER" -- git clone --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+    runuser -u "$APP_USER" -- "$GIT_BIN" clone --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
   fi
 fi
 
@@ -47,7 +62,7 @@ if [[ ! -f "$INSTALL_DIR/requirements.txt" ]]; then
 fi
 
 if [[ ! -d "$INSTALL_DIR/.venv" ]]; then
-  runuser -u "$APP_USER" -- python -m venv "$INSTALL_DIR/.venv"
+  runuser -u "$APP_USER" -- "$PYTHON_BIN" -m venv "$INSTALL_DIR/.venv"
 fi
 
 runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip
