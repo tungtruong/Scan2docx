@@ -29,7 +29,10 @@ if [[ -z "$GIT_BIN" ]]; then
 fi
 
 if command -v pacman >/dev/null 2>&1; then
-  pacman -Sy --noconfirm --needed git python python-pip tesseract
+  pacman -Sy --noconfirm --needed \
+    git python python-pip tesseract \
+    base-devel gcc pkgconf \
+    libjpeg-turbo zlib libtiff lcms2 libwebp openjpeg2 freetype2
 fi
 
 if ! id -u "$APP_USER" >/dev/null 2>&1; then
@@ -65,8 +68,8 @@ if [[ ! -d "$INSTALL_DIR/.venv" ]]; then
   runuser -u "$APP_USER" -- "$PYTHON_BIN" -m venv "$INSTALL_DIR/.venv"
 fi
 
-runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip
-runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip setuptools wheel
+runuser -u "$APP_USER" -- env PIP_PREFER_BINARY=1 "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 
 if [[ ! -f "$INSTALL_DIR/.env" ]]; then
   cp "$INSTALL_DIR/.env.example" "$INSTALL_DIR/.env"

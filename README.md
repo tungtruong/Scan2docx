@@ -217,6 +217,12 @@ Script update se:
 - Compile check `bot.py`
 - Restart service va in trang thai
 
+Neu gap loi build `Pillow` (vd: `error: command 'gcc' failed`), cai them build deps roi chay lai installer/update:
+
+```bash
+sudo pacman -Sy --needed base-devel gcc pkgconf libjpeg-turbo zlib libtiff lcms2 libwebp openjpeg2 freetype2
+```
+
 ## 4) Su dung
 
 - Mo chat voi bot va go `/start`
