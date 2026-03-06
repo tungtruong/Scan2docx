@@ -11,6 +11,13 @@ SERVICE_NAME="${SERVICE_NAME:-scan2docx}"
 APP_USER="${APP_USER:-scan2docx}"
 BRANCH="${BRANCH:-main}"
 
+if command -v pacman >/dev/null 2>&1; then
+  pacman -Sy --noconfirm --needed \
+    git python python-pip tesseract \
+    base-devel gcc pkgconf \
+    libjpeg-turbo zlib libtiff lcms2 libwebp openjpeg2 freetype2
+fi
+
 GIT_BIN="$(command -v git || true)"
 if [[ -z "$GIT_BIN" ]]; then
   echo "git not found. Please install git (pacman -S git)."
@@ -38,8 +45,8 @@ fi
 runuser -u "$APP_USER" -- "$GIT_BIN" -C "$INSTALL_DIR" fetch origin "$BRANCH"
 runuser -u "$APP_USER" -- "$GIT_BIN" -C "$INSTALL_DIR" checkout "$BRANCH"
 runuser -u "$APP_USER" -- "$GIT_BIN" -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH"
-runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip
-runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip setuptools wheel
+runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/pip" install --prefer-binary -r "$INSTALL_DIR/requirements.txt"
 runuser -u "$APP_USER" -- "$INSTALL_DIR/.venv/bin/python" -m compileall "$INSTALL_DIR/bot.py"
 
 systemctl restart "${SERVICE_NAME}.service"

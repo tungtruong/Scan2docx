@@ -206,7 +206,7 @@ sudo INSTALL_DIR=/opt/scan2docx bash deploy/arch/install_arch_service.sh
 Update nhanh sau moi lan push code:
 
 ```bash
-sudo INSTALL_DIR=/opt/scan2docx SERVICE_NAME=scan2docx BRANCH=main bash /opt/scan2docx/deploy/arch/quick_update.sh
+sudo INSTALL_DIR=/opt/scan2docx SERVICE_NAME=scan2docx BRANCH=master bash /opt/scan2docx/deploy/arch/quick_update.sh
 ```
 
 Script update se:
